@@ -26,6 +26,14 @@ const sellModel = mongoose.model('sell', new mongoose.Schema({
     oc: String
 }))
 
+const metaModel = mongoose.model('meta', new mongoose.Schema({
+    ano:String,
+    mes:String,
+    vendedor:String,
+    produto:String,
+    qunatidade:Number
+}))
+
 const watcher = chokidar.watch('data', {ignored: /^\./, persistent: true});
 
 const end_timeout = 30000;
@@ -176,11 +184,34 @@ const chechIfCancelled = (sell) => (sell['Canc'] === '000' || sell['Canc'] === '
 const chechIfCategory = (sell) => (sell['Cat Prod'] != '99') ? true : false
 const checkSell = (sell) => (checkIfOcurrency(sell) && chechIfCancelled(sell) && chechIfCategory(sell)) ? true : false
 
+importarMetas()
+async function importarMetas() {
+    try {
+        fs.createReadStream('data/METAS.csv')
+            .pipe(csv.parse({delimiter: ';', headers: false}))
+            .on('data', async (row) => {
+                try {
+                    const meta = {
+                        ano:row[0],
+                        mes:row[1],
+                        seller:row[2],
+                        cod_prod:row[3].padStart(10,"0"),
+                        fam_prod:row[4].padStart(3,"0"),
+                        amount:parseInt(row[5])
+                    }
+                    const query = {ano:meta.ano , mes:meta.mes, vendedor:meta.seller, produto:meta.cod_prod}
+                    await metaModel.findOneAndUpdate(query, meta, { upsert: true, new: true }).exec()
+                } catch(error) {
+                    console.log('error: ',error)
+                }
+            })
+    } catch(error) {
+        console.log('error: ',error)
+    }
+}
+
 async function run() {
     try {
-        
-        console.log('iniciando a importação')
-
         fs.createReadStream('data/PEDIDOS.CSV')
             .pipe(csv.parse({ delimiter: ';', headers: true }))
             .on('data', async (row) => {
@@ -257,22 +288,42 @@ app.get('/get-data-by-seller/:vd', async (req, res) => {
             })
 
             dados = {
-                faturamento: parseFloat(faturamento).toFixed(2),
-                clientesCobTotal: removeDuplcates(clientesCobTotal).length,
-                clientesCobCervejasTotal: removeDuplcates(clientesCobCervejasTotal).length,
-                clientesCobCervejas600: removeDuplcates(clientesCobCervejas600).length,
-                clientesCobNA: removeDuplcates(clientesCobNA).length,
-                clientesCobSchin600: removeDuplcates(clientesCobSchin600).length,
-                clientesCobSchinTotal: removeDuplcates(clientesCobSchinTotal).length,
-                clientesCobEisenbahn600: removeDuplcates(clientesCobEisenbahn600).length,
-                clientesCobEisenbahnTotal: removeDuplcates(clientesCobEisenbahnTotal).length,
-                clientesCobDevassa600: removeDuplcates(clientesCobDevassa600).length,
-                clientesCobDevassaTotal: removeDuplcates(clientesCobDevassaTotal).length,
-                volume_300_600_1lt,
-                volume_premium,
-                volume_volume_total,
-                volume_curinga01,
-                volume_curinga02
+                real: {
+                    faturamento: parseFloat(faturamento).toFixed(2),
+                    coberturaTotal: removeDuplcates(clientesCobTotal).length,
+                    coberturaCervejasTotal: removeDuplcates(clientesCobCervejasTotal).length,
+                    coberturaCervejas600: removeDuplcates(clientesCobCervejas600).length,
+                    coberturaNA: removeDuplcates(clientesCobNA).length,
+                    coberturaSchin600: removeDuplcates(clientesCobSchin600).length,
+                    coberturaSchinTotal: removeDuplcates(clientesCobSchinTotal).length,
+                    coberturaEisenbahn600: removeDuplcates(clientesCobEisenbahn600).length,
+                    coberturaEisenbahnTotal: removeDuplcates(clientesCobEisenbahnTotal).length,
+                    coberturaDevassa600: removeDuplcates(clientesCobDevassa600).length,
+                    coberturaDevassaTotal: removeDuplcates(clientesCobDevassaTotal).length,
+                    volume_300_600_1lt,
+                    volume_premium,
+                    volume_volume_total,
+                    volume_curinga01,
+                    volume_curinga02
+                },
+                meta: {
+                    faturamento: 0,
+                    coberturaTotal: 0,
+                    coberturaCervejasTotal: 0,
+                    coberturaCervejas600: 0,
+                    coberturaNA: 0,
+                    coberturaSchin600: 0,
+                    coberturaSchinTotal: 0,
+                    coberturaEisenbahn600: 0,
+                    coberturaEisenbahnTotal: 0,
+                    coberturaDevassa600: 0,
+                    coberturaDevassaTotal: 0,
+                    volumeTrividro: 0,
+                    volumePremium: 0,
+                    volumeTotal: 0,
+                    volumeCuringa01: 0,
+                    volumeCuringa02: 0
+                }
             }
 
         }
@@ -281,10 +332,6 @@ app.get('/get-data-by-seller/:vd', async (req, res) => {
         console.log('error: ', error)
     }
 })
-
-// app.get('/import', async (req, res) => {
-//     await run(res)
-// })
 
 app.listen(3000, function () {
     console.log('Example app listening on port 3000!')
