@@ -22,7 +22,7 @@
     "chokidar": "^3.2.1",
     "express": "^4.17.1",
     "fast-csv": "^3.4.0",
-    "mongoose": "^5.7.0",
+    "mongoose": "^5.7.5",
     "mongoose-float": "^1.0.4"
   }
 }
